@@ -19,7 +19,7 @@ def check_flags( flag, mask ):
 def create_source( name, ext, created_header_file ):
     file_path = name + ext
 
-    file = open( file_path, "w+" )
+    file = open( file_path, "w+", newline='\n' )
     file.write( comment_info )
 
     header_ext = ".h"
@@ -35,7 +35,7 @@ def create_source( name, ext, created_header_file ):
 def create_header( name, ext, no_pragma ):
     file_path = name + ext
 
-    file = open( file_path, "w+" )
+    file = open( file_path, "w+", newline='\n' )
     file.write( comment_info )
 
     if not(no_pragma):
@@ -44,6 +44,7 @@ def create_header( name, ext, no_pragma ):
     print( termcolor.colored( "created header file \"" + file_path + "\"", "green" ) )
 
 if __name__ == "__main__":
+    name_is_set = False
     name = "file"
     is_cpp = True
     overwrite = False
@@ -58,16 +59,18 @@ if __name__ == "__main__":
         match arg:
             case "--help" | "-h":
                 print( termcolor.colored( "cnew: create new header and/or source file for C/C++", "cyan" ) )
-                print( termcolor.colored( "     -n, --name      [string] [default=\"file\"]: set name of file. include parent directory if deeper in current directory", "cyan" ) )
-                print( termcolor.colored( "     --header        [switch] [default=false]:  only create a header file", "cyan" ) )
-                print( termcolor.colored( "     --source        [switch] [default=false]:  only create a source file", "cyan" ) )
-                print( termcolor.colored( "     -o, --overwrite [switch] [default=false]:  if file exists, overwrite", "cyan" ) )
-                print( termcolor.colored( "     --no_pragma     [switch] [default=false]:  don't write pragma once in header file", "cyan" ) )
-                print( termcolor.colored( "     -c              [switch] [default=false]:  create .c and .h instead of .cpp and .hpp", "cyan" ) )
+                print( termcolor.colored( "     -n, --name [required] [string]: set name of file.", "cyan" ) )
+                print( termcolor.colored( "                                     include parent directory if deeper in current directory.", "cyan" ) )
+                print( termcolor.colored( "     --header              [switch] [default=false]:  only create a header file", "cyan" ) )
+                print( termcolor.colored( "     --source              [switch] [default=false]:  only create a source file", "cyan" ) )
+                print( termcolor.colored( "     -o, --overwrite       [switch] [default=false]:  if file exists, overwrite", "cyan" ) )
+                print( termcolor.colored( "     --no_pragma           [switch] [default=false]:  don't write pragma once in header file", "cyan" ) )
+                print( termcolor.colored( "     -c                    [switch] [default=false]:  create .c and .h instead of .cpp and .hpp", "cyan" ) )
 
                 print( termcolor.colored( "\n     -h, --help: print this help message and exit", "cyan" ) )
                 sys.exit()
             case "-n" | "--name":
+                name_is_set = True
                 name = sys.argv[i + 1]
             case "--header":
                 flags &= ~create_source_flag
@@ -82,6 +85,10 @@ if __name__ == "__main__":
             case _:
                 continue
     
+    if not(name_is_set):
+        print( termcolor.colored( "must set file name! run with -h or --help for more info", "red" ) )
+        sys.exit()
+
     created_header_file = check_flags( flags, create_header_flag )
     if created_header_file:
         ext = ".h"

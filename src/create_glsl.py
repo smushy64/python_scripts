@@ -19,7 +19,7 @@ def check_flags( flag, mask ):
 def create_vertex( name ):
     file_path = name + ".vs"
 
-    file = open( file_path, "w+" )
+    file = open( file_path, "w+", newline='\n' )
     file.write( comment_info )
     file.write( "\n" + "#version 460 core\n" + "\nout struct {\n\n} v2f;\n\n" + "void main() {\n\n}\n" )
 
@@ -29,7 +29,7 @@ def create_vertex( name ):
 def create_fragment( name ):
     file_path = name + ".fs"
 
-    file = open( file_path, "w+" )
+    file = open( file_path, "w+", newline='\n' )
     file.write( comment_info )
     file.write( "\n" + "#version 460 core\n" + "\nin struct {\n\n} v2f;\n\n" + "out vec4 FRAG_COLOR;\nvoid main() {\n\n}\n" )
 
@@ -37,6 +37,7 @@ def create_fragment( name ):
     print( termcolor.colored( "created glsl fragment source file \"" + file_path + "\"", "green" ) )
 
 if __name__ == "__main__":
+    name_is_set = False
     name = "file"
     overwrite = False
 
@@ -49,7 +50,8 @@ if __name__ == "__main__":
         match arg:
             case "--help" | "-h":
                 print( termcolor.colored( "glnew: create new vertex and/or fragment source files for GLSL", "cyan" ) )
-                print( termcolor.colored( "     -n, --name      [string] [default=\"file\"]: set name of file. include parent directory if deeper in current directory", "cyan" ) )
+                print( termcolor.colored( "     -n, --name    [required] [string]: set name of file.", "cyan" ) )
+                print( termcolor.colored( "                                        include parent directory if deeper in current directory.", "cyan" ) )
                 print( termcolor.colored( "     --vertex        [switch] [default=false]:  only create a vertex file", "cyan" ) )
                 print( termcolor.colored( "     --fragment      [switch] [default=false]:  only create a fragment file", "cyan" ) )
                 print( termcolor.colored( "     -o, --overwrite [switch] [default=false]:  if file exists, overwrite", "cyan" ) )
@@ -57,6 +59,7 @@ if __name__ == "__main__":
                 print( termcolor.colored( "\n     -h, --help: print this help message and exit", "cyan" ) )
                 sys.exit()
             case "-n" | "--name":
+                name_is_set = True
                 name = sys.argv[i + 1]
             case "--vertex":
                 flags &= ~create_fragment_flag
@@ -66,7 +69,11 @@ if __name__ == "__main__":
                 overwrite = True
             case _:
                 continue
-    
+
+    if not(name_is_set):
+        print( termcolor.colored( "must set file name! run with -h or --help for more info", "red" ) )
+        sys.exit()
+
     if check_flags( flags, create_vertex_flag ):
         if overwrite:
             create_vertex( name )
