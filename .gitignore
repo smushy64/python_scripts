@@ -1,0 +1,4 @@
+build
+*.spec
+make.ps1
+src/hello_world.py
