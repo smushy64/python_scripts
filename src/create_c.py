@@ -1,3 +1,7 @@
+# * Description:  Script for creating C header/source files
+# * Author:       Alicia Amarilla ( smushyaa@gmail.com )
+# * File Created: February 09, 2023
+
 import sys
 import pathlib
 from datetime import date
