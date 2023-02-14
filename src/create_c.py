@@ -3,124 +3,187 @@
 # * File Created: February 09, 2023
 
 import sys
+import os
+import getopt
 import pathlib
 from datetime import date
 import termcolor
 
-today = date.today()
+silent = False
 
-comment_author = "Alicia Amarilla ( smushyaa@gmail.com )"
-comment_date   = today.strftime( "%B %d, %Y" )
-comment_info0  = "    * Description:  \n"
-comment_info1  = "    * Author:       " + comment_author + "\n"
-comment_info2  = "    * File Created: " + comment_date + "\n"
+def print_status( msg:str ):
+    if not(silent):
+        print( termcolor.colored( msg, "green" ) )
 
-comment_info = "/**\n" + comment_info0 + comment_info1 + comment_info2 + "*/\n"
+def print_err( msg:str ):
+    print( termcolor.colored( msg, "red" ) )
 
-def check_flags( flag, mask ):
-    return ( flag & mask ) != 0
+def print_fatal( msg:str ):
+    print_err( "error: " + msg )
+    print_err( "run with -h or --help to get a list of valid options" )
+    sys.exit(-1)
 
-def create_source( name, ext, created_header_file ):
-    file_path = name + ext
+def print_help( msg:str ):
+    print( termcolor.colored( msg, "cyan" ) )
 
-    file = open( file_path, "w+", newline='\n' )
-    file.write( comment_info )
+def display_help():
+    print_help( "cnew: create new C/C++ header and/or source file" )
+    print_help( " -n, --name, string [string] [required] [position = 1]: set name of source/header. don't include src directory as it is implicit" )
+    print_help( "    if there is no src directory in the current directory, file will instead be created in the current directory." )
+    print_help( " --no_pragma        [switch]: don't write pragma once in header file" )
+    print_help( " --no_include       [switch]: don't header file in source file. error if --source or --header is also defined" )
+    print_help( " --header           [switch]: only create header file. error if --source is also defined" )
+    print_help( " --source           [switch]: only create source file. error if --header is also defined" )
+    print_help( " --no_info          [switch]: don't write info" )
+    print_help( " -d, --description  [string]: description at the top of files. error if --no_info is also defined" )
+    print_help( " -c                 [switch]: create c source/header instead of cpp" )
+    print_help( " -o, --overwrite    [switch]: will overwrite files if they already exist" )
+    print_help( " -g, --header_guard [string]: define header guard to use instead of pragma once. --no_pragma has no effect with this option" )
+    print_help( " -s, -q, --silent, --quiet [switch]: don't print status" )
+    print_help( "\n -h, --help      [switch]: print this help message and quit" )
+    sys.exit(0)
 
-    header_ext = ".h"
-    if ext == ".cpp":
-        header_ext = ".hpp"
-
-    if created_header_file:
-        file.write( "#include \"" + name + header_ext + "\"" )
-
-    file.close()
-    print( termcolor.colored( "created source file \"" + file_path + "\"", "green" ) )
-
-def create_header( name, ext, no_pragma ):
-    file_path = name + ext
-
-    file = open( file_path, "w+", newline='\n' )
-    file.write( comment_info )
-
-    if not(no_pragma):
-        file.write( "#pragma once" )
-    file.close()
-    print( termcolor.colored( "created header file \"" + file_path + "\"", "green" ) )
+short_options = "n:g:d:ochsq"
+long_options  = [
+    "name=", "overwrite", "header_guard=",
+    "no_pragma", "help", "header",
+    "source", "no_info", "no_include",
+    "description",
+    "silent", "quiet"
+]
 
 if __name__ == "__main__":
-    name_is_set = False
-    name = "file"
-    is_cpp = True
-    overwrite = False
-    no_pragma = False
+    arg_list = sys.argv[1:]
 
-    create_header_flag = ( 1 << 0 )
-    create_source_flag = ( 1 << 1 )
+    if len( arg_list ) == 0:
+        print_fatal( "arguments required!" )
 
-    flags = create_header_flag | create_source_flag
+    name = ""
 
-    for i, arg in enumerate( sys.argv ):
-        match arg:
-            case "--help" | "-h":
-                print( termcolor.colored( "cnew: create new header and/or source file for C/C++", "cyan" ) )
-                print( termcolor.colored( "     -n, --name [required] [string]: set name of file.", "cyan" ) )
-                print( termcolor.colored( "                                     include parent directory if deeper in current directory.", "cyan" ) )
-                print( termcolor.colored( "     --header              [switch] [default=false]:  only create a header file", "cyan" ) )
-                print( termcolor.colored( "     --source              [switch] [default=false]:  only create a source file", "cyan" ) )
-                print( termcolor.colored( "     -o, --overwrite       [switch] [default=false]:  if file exists, overwrite", "cyan" ) )
-                print( termcolor.colored( "     --no_pragma           [switch] [default=false]:  don't write pragma once in header file", "cyan" ) )
-                print( termcolor.colored( "     -c                    [switch] [default=false]:  create .c and .h instead of .cpp and .hpp", "cyan" ) )
+    if not("-" in arg_list[0]):
+        name = arg_list[0]
+        arg_list = arg_list[1:]
 
-                print( termcolor.colored( "\n     -h, --help: print this help message and exit", "cyan" ) )
-                sys.exit()
-            case "-n" | "--name":
-                name_is_set = True
-                name = sys.argv[i + 1]
-            case "--header":
-                flags &= ~create_source_flag
-            case "--source":
-                flags &= ~create_header_flag
-            case "-o" | "--overwrite":
-                overwrite = True
-            case "-c":
-                is_cpp = False
-            case "--no_pragma":
-                no_pragma = True
-            case _:
-                continue
-    
-    if not(name_is_set):
-        print( termcolor.colored( "must set file name! run with -h or --help for more info", "red" ) )
-        sys.exit()
+    cpp          = True
+    no_header    = False
+    no_source    = False
+    header_guard = ""
+    no_pragma    = False
+    no_info      = False
+    no_include   = False
+    overwrite    = False
+    description  = ""
 
-    created_header_file = check_flags( flags, create_header_flag )
-    if created_header_file:
-        ext = ".h"
-        if is_cpp:
-            ext = ".hpp"
+    try:
+        args, values = getopt.getopt( arg_list, short_options, long_options )
+    except getopt.error as err:
+        print_fatal( err )
 
-        file_path = name + ext
+    for arg, value in args:
+        if arg == "-h" or arg == "--help":
+            display_help()
+        if arg == "-n" or arg == "--name":
+            name = value
+        if arg == "--source":
+            no_header = True
+        if arg == "--header":
+            no_source = True
+        if arg == "--no_pragma":
+            no_pragma = True
+        if arg == "--no_include":
+            no_include = True
+        if arg == "-c":
+            cpp = False
+        if arg == "-g" or arg == "--header_guard":
+            header_guard = value
+        if arg == "--no_info":
+            no_info = True
+        if arg == "-o" or arg == "--overwrite":
+            overwrite = True
+        if arg == "-s" or arg == "-q" or arg == "--silent" or arg == "--quiet":
+            silent = True
+        if arg == "-d" or arg == "--description":
+            description = value
 
-        if overwrite:
-            create_header(name, ext, no_pragma)
+    if name == "":
+        print_fatal( "must input file name!" )
+
+    if no_info and description != "":
+        print_fatal( "--no_info and -d/--description cannot be defined simultaneously!" )
+
+    if no_header and no_source:
+        print_fatal( "--header and --source cannot be defined simultaneously!" )
+
+    if no_include and ( no_header or no_source ):
+        print_fatal( "--no_include and --source/--header cannot be defined simultaneously!" )
+
+    header_ext = ""
+    source_ext = ""
+
+    if cpp:
+        header_ext = ".hpp"
+        source_ext = ".cpp"
+    else:
+        header_ext = ".h"
+        source_ext = ".c"
+
+    base_name = os.path.basename(os.path.normpath( name ))
+
+    header_full_path = ""
+    source_full_path = ""
+
+    if pathlib.Path( "src" ).is_dir():
+        header_full_path = "src/" + name + header_ext
+        source_full_path = "src/" + name + source_ext
+    else:
+        header_full_path = name + header_ext
+        source_full_path = name + source_ext
+
+    desc = ""
+    if not(no_info):
+        today = date.today()
+        desc += "/**\n"
+        desc += " * Description:  " + description + "\n"
+        desc += " * Author:       Alicia Amarilla (smushyaa@gmail.com)\n"
+        desc += " * File Created: " + today.strftime( "%B %d, %Y" ) + "\n"
+        desc += "*/\n"
+
+
+    if not(no_header):
+        if not(overwrite) and pathlib.Path( header_full_path ).is_file():
+            print_err( "error: cannot create header file, file already exists" )
+            print_err( "use -o or --overwrite to overwrite existing file" )
         else:
-            if pathlib.Path(file_path).is_file():
-                print( termcolor.colored( "cannot create header file \"" + file_path + "\". file already exists", "red" ) )
-            else:
-                create_header(name, ext, no_pragma)
+            try:
+                with open( header_full_path, "w+", newline='\n' ) as write_file:
+                    if not(no_info):
+                        write_file.write( desc )
+                    if header_guard == "":
+                        if not( no_pragma ):
+                            write_file.write( "#pragma once" )
+                    else:
+                        write_file.write( "#if !defined(" + header_guard + ")\n" )
+                        write_file.write( "#define " + header_guard + " 1\n" )
+                        write_file.write( "#endif\n" )
+            except OSError as err:
+                print_fatal( str(err) )
 
-    if check_flags( flags, create_source_flag ):
-        ext = ".c"
-        if is_cpp:
-            ext = ".cpp"
+            print_status( "created header file \"" + header_full_path + "\"" )
 
-        file_path = name + ext
-
-        if overwrite:
-            create_source(name, ext, created_header_file)
+    if not(no_source):
+        if not(overwrite) and pathlib.Path( source_full_path ).is_file():
+            print_err( "error: cannot create source file, already exists" )
+            print_err( "use -o or --overwrite to overwrite existing file" )
         else:
-            if pathlib.Path(file_path).is_file():
-                print( termcolor.colored( "cannot create source file \"" + file_path + "\". file already exists", "red" ) )
-            else:
-                create_source(name, ext, created_header_file)
+            try:
+                with open( source_full_path, "w+", newline='\n' ) as write_file:
+                    if not(no_info):
+                        write_file.write( desc )
+                    if not(no_include) and not(no_header):
+                        write_file.write( "#include \"" + base_name + header_ext + "\"" )
+            except OSError as err:
+                print_fatal( str(err) )
 
+            print_status( "created source file \"" + source_full_path + "\"" )
+
+    sys.exit(0)
